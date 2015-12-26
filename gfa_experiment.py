@@ -5,7 +5,7 @@ Python implementation of the file ./demo/CCAGFAExperiment.R in the R package CCA
 from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
-from src.gfa import gfa
+from src.gfa import gfa_experiments
 
 # Dimensions
 Ntrain = Ntest = 100
