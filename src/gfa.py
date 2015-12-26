@@ -40,7 +40,50 @@ def gfa(Y, K,
         dropK=True, low_mem=False,
         verbose=2):
     """
+    Parameters
+    ----------
+    Y : list
+       List of M data ndarrays. Y[m] is an ndarray (matrix) with
+       N rows (samples) and D_m columns (features). The
+       samples need to be co-occurring.
+       NOTE: All of these should be centered, so that the mean
+             of each feature is zero
+       NOTE: The algorithm is roughly invariant to the scale
+             of the data, but extreme values should be avoided.
+             Data with roughly unit variance or similar scale
+             is recommended.
+    K : int
+        The number of components
+
+    Returns
+    -------
+    The trained model, which is a dict that contains the following elements:
+    TODO: (could make the model an object later)
+        Z    : The mean of the latent variables; N times K matrix
+        covZ : The covariance of the latent variables; K times K matrix
+        ZZ   : The second moments ZZ^T; K times K matrix
+
+        W    : List of the mean projections; D_i times K matrices
+        covW : List of the covariances of the projections; D_i times D_i matrices
+        WW   : List of the second moments WW^T; K times K matrices
+
+        tau  : The mean precisions (inverse variance, so 1/tau gives the
+            variances denoted by sigma in the paper); M-element vector
+
+        alpha: The mean precisions of the projection weights, the
+            variances of the ARD prior; M times K matrix
+
+        U,V,u.mu,v.mu: The low-rank factorization of alpha.
+
+        cost : Vector collecting the variational lower bounds for each
+            iteration
+        D    : Data dimensionalities; M-element vector
+        datavar   : The total variance in the data sets, needed for
+                 GFAtrim()
+        addednoise: The level of extra noise as in opts$addednoise
+
     They use getDefaultOpts() in the R package,
     but I guess specifying default argument values like this is more standard Python,
     like scikit learn https://github.com/scikit-learn/scikit-learn/blob/master/sklearn/ensemble/gradient_boosting.py#L723.
     """
+    pass
