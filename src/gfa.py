@@ -4,6 +4,7 @@ This is a Python implementation of the file ./R/CCAGFA.R in the R package CCAGFA
 """
 
 from __future__ import division, print_function
+import numpy as np
 
 
 def gfa_experiments(Y, K, Nrep=10, verbose=2, **opts):
@@ -86,4 +87,17 @@ def gfa(Y, K,
     but I guess specifying default argument values like this is more standard Python,
     like scikit learn https://github.com/scikit-learn/scikit-learn/blob/master/sklearn/ensemble/gradient_boosting.py#L723.
     """
-    pass
+    # check that data is centered
+    for m, Y_m in enumerate(Y):
+        if not np.all(np.abs(np.mean(Y_m, axis=1)) < 1e-7):
+            print("Warning: data from group %d does not have zero mean" % m)
+
+    # check that there is more than one group of data
+    if len(Y) < 2:
+        print("Warning: the number of data sets must be larger than 1")
+
+    # store dimensions
+    M = len(Y)
+    D = [Y_m.shape[1] for Y_m in Y]  # D = [D_1, ..., D_M]
+    Ds = sum(D)                      # total nr of features
+    N = Y[0].shape[0]                # total number of samples
