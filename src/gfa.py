@@ -5,6 +5,8 @@ This is a Python implementation of the file ./R/CCAGFA.R in the R package CCAGFA
 
 from __future__ import division, print_function
 import numpy as np
+from scipy import special
+import math
 
 
 def gfa_experiments(Y, K, Nrep=10, verbose=2, **opts):
@@ -99,6 +101,7 @@ def gfa(Y, K,
     # store dimensions
     M = len(Y)
     D = [Y_m.shape[1] for Y_m in Y]  # Data dimensions for each group. D = [D_1, ..., D_M]
+    D = np.array(D)
     Ds = sum(D)                      # total nr of features
     N = Y[0].shape[0]                # total number of samples
     datavar = []                     # total variance of the data for each group
@@ -130,3 +133,67 @@ def gfa(Y, K,
     #
 
     # Latent variables Z
+    Z = np.random.randn(N, K)   # The mean
+    covZ = np.diag(np.ones(K))  # The covariance
+    ZZ = covZ + covZ*N          # The second moments
+
+    # ARD and noise parameters (What is ARD?)
+    alpha = np.ones((M, K))     # The mean of the ARD precisions
+    logalpha = np.ones((M, K))  # The mean of <\log alpha>
+    if R=="full":
+        b_ard = np.ones((M, K))     # The parameters of the Gamma distribution
+        a_ard = alpha_0 + D/2       #       for ARD precisions
+        # psi is digamma, derivative of the logarithm of the gamma function
+        digammaa_ard = special.psi(a_ard)
+    tau = np.repeat(init_tau, M)    # The mean noise precisions
+    a_tau = alpha_0t + N*D/2        # The parameters of the Gamma distribution
+    b_tau = np.zeros(M)             #   for the noise precisions
+    digammaa_tau = special.psi(a_tau)  # Constants needed for computing the lower bound
+    lgammaa_tau = -np.sum(np.vectorize(math.lgamma)(a_tau))
+    lb_pt_const = -M*np.vectorize(math.lgamma)(alpha_0t) + M*alpha_0t*np.log(beta_0t)
+
+    # Alpha needs to be initialized to match the data scale
+    for m in range(M):
+        alpha[m, :] = K*D[m]/(datavar[m]-1/tau[m])
+
+    # The projections
+    # No need to initialize projections randomly ,since their updating
+    # step is the first one; just define the variables here
+    low_mem = True
+    W = [None]*M  # the means
+    if not low_mem:
+        covW = [None]*M  # the covariances
+    else: 
+        covW = np.diag(np.ones(K))
+
+    WW = [None]*M  # the second moments
+    for m in range(M):
+        # I think the more standard way would be to let W[m] be KxD_m
+        # but they apparently set it to (D_m x K)
+        W[m] = np.zeros((D[m], K))  # So each W[m] is actually W[m].T
+        if not low_mem:
+            covW[m] = np.diag(np.ones(K))
+            # matrix crossproduct of W is W.T %*% W
+            WW[m] = np.dot(W[m].T, W[m]) + covW[m]*D[m]
+        else:
+            WW[m] = np.dot(W[m].T, W[m]) + covW*D[m]
+
+    # TODO: These are for alpha, U, and V
+    # Rotation parameters
+    # Use R-rank factorization of alpha
+
+    cost = []  # for storing the lower bounds
+
+    #
+    # The main loop
+    #
+    for iter_ in range(int(iter_max)):
+        pass
+
+
+# TODO: remove later, just for testing, to see if this shit runs
+if __name__ == "__main__":
+    Y_1 = np.array([[-1, 1], [-2, 2]])
+    Y_2 = np.array([[10, 11, 12], [20, 22, 24], [30, 33, 36], [40, 44, 48]])
+    Y = [Y_1, Y_2]
+    gfa(Y, K=8)
