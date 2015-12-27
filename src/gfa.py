@@ -98,6 +98,35 @@ def gfa(Y, K,
 
     # store dimensions
     M = len(Y)
-    D = [Y_m.shape[1] for Y_m in Y]  # D = [D_1, ..., D_M]
+    D = [Y_m.shape[1] for Y_m in Y]  # Data dimensions for each group. D = [D_1, ..., D_M]
     Ds = sum(D)                      # total nr of features
     N = Y[0].shape[0]                # total number of samples
+    datavar = []                     # total variance of the data for each group
+    for Y_m in Y:
+        # Y_m is NxD_m, so take variance along column (axis=0), total variance <- sum
+        datavar.append(sum(np.var(Y_m, axis=0)))
+
+    if isinstance(R, int) and R >= min(M, K):
+        if verbose == 2:
+            print("The rank corresponds to full rank solution.")
+        R = "full"
+    if R != "full":
+        if verbose == 2:
+            print("NOTE: optimization of the rotation is not supported for low rank model")
+        rotate = False
+
+    # Some constants for speeding up the computation
+    const = N*Ds/2*np.log(2*np.pi)  # constant factors for the lower bound
+    Yconst = [np.sum(np.vectorize(pow)(Y_m, 2)) for Y_m in Y]
+    id1 = np.ones(K)
+    alpha_0 = prior_alpha_0   # Easier access for hyperprior values
+    beta_0 = prior_beta_0
+    alpha_0t = prior_alpha_0t
+    beta_0t = prior_beta_0t
+
+    #
+    # Initialize the model randomly; other initializations could
+    # be done, but overdispersed random initialization is quite good.
+    #
+
+    # Latent variables Z
