@@ -180,7 +180,34 @@ def gfa(Y, K,
 
     # TODO: These are for alpha, U, and V
     # Rotation parameters
+    
     # Use R-rank factorization of alpha
+    if not R == "full":
+        U = np.abs(np.random.randn(M, R))
+        lu = len(U)
+        u_mu = np.repeat(0, M)
+        V = np.abs(np.random.randn(K, R))
+        lv = len(V)
+        v_mu = np.repeat(0, K)
+
+        # TODO
+        lambda_ = 1
+
+        x = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
+        x = randn(len(x)) / 100
+
+        par_uv = {'getu': range(0, lu), \
+                'getv': range(lu, lu + lv), \
+                'getumean': range(lu + lv, lu + lv + M), \
+                'getvmean': range(lu + lv + M, length(x)), \
+                'M': M, \
+                'K': K, \
+                'R': R, \
+                'D': D, \
+                'lambda': lambda_}
+        
+        par_uv_w2 = np.zeros((M, K))
+
 
     cost = []  # for storing the lower bounds
 
