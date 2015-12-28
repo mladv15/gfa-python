@@ -194,7 +194,7 @@ def gfa(Y, K,
         lambda_ = 1
 
         x = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
-        x = randn(len(x)) / 100
+        x = np.random.randn(len(x)) / 100
 
         par_uv = {'getu': range(0, lu), \
                 'getv': range(lu, lu + lv), \
