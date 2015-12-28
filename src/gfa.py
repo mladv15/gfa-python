@@ -199,7 +199,7 @@ def gfa(Y, K,
         par_uv = {'getu': range(0, lu), \
                 'getv': range(lu, lu + lv), \
                 'getumean': range(lu + lv, lu + lv + M), \
-                'getvmean': range(lu + lv + M, length(x)), \
+                'getvmean': range(lu + lv + M, len(x)), \
                 'M': M, \
                 'K': K, \
                 'R': R, \
