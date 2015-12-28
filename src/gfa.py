@@ -8,6 +8,8 @@ import numpy as np
 from scipy import special
 import math
 
+DEBUG = True
+
 
 def gfa_experiments(Y, K, Nrep=10, verbose=2, **opts):
     """
@@ -215,7 +217,72 @@ def gfa(Y, K,
     # The main loop
     #
     for iter_ in range(int(iter_max)):
-        pass
+        
+        # Check if some components need to be removed
+        # remove columns which have most elements approaching 0
+        # np.where() returns a tuple
+        (keep,) = np.where(np.power(Z, 2).mean(axis=0) > 1e-7)  # column indices to keep
+        if len(keep) != K and dropK:
+            K = len(keep)
+            if K == 0:
+                raise ValueError("All latent factors in Z are 0, shut down all components, no structure found in the data")
+            id_ = np.ones(K)
+            # in R, when selecting only one column from the matrix, the result is defaulted to
+            # a normal (row) array. Since we're indexing with an array (`keep`), the Python default
+            # is to return a column vector, so no need for a drop argument.
+            Z = Z[:, keep]
+            covZ = covZ[keep, keep]
+            ZZ = ZZ[keep, keep]
+            for m in range(M):
+                W[m] = W[m][:, keep]
+                if not low_mem:
+                    covW[m] = covW[m][keep, keep]
+                WW[m] = WW[m][keep, keep]
+
+            alpha = alpha[:, keep]
+            logalpha = logalpha[:, keep]
+
+            if R != "full":
+                V = V[keep, :]
+                v_mu = v_mu[keep]
+                # TODO: update x, lv and par
+            else:
+                b_ard = np.ones((M, K))
+            if rotate:
+                # TODO: par["K"] = K ?
+                pass
+
+        # endif len(keep) != K and dropK
+
+        # moar stuff ...
+
+        # TODO: change calculation of lower bound
+        # this is just placeholder so it doesn't do iter_max=10e5 loops every run, which takes 30 sec
+        cost.append(1337)
+
+        if verbose == 2:
+            print("Iteration: %d/ cost: 1337/ K: %d" % (iter_, K))
+        # Convergence if the relative change in cost is small enough
+        if iter_ > 0:
+            diff = cost[iter_] - cost[iter_-1]
+            if abs(diff)/abs(cost[iter_]) < iter_crit or iter_ == iter_max:
+                break
+
+    if DEBUG:
+        print("Z")
+        print(np.array(Z))
+        print("covZ")
+        print(covZ)
+        print("ZZ")
+        print(ZZ)
+
+        print("W")
+        print(np.array(W))
+        print("covW")
+        print(covW)
+        print("WW")
+        print(WW)
+
 
 
 # TODO: remove later, just for testing, to see if this shit runs
