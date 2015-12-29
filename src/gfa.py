@@ -280,6 +280,26 @@ def gfa(Y, K,
                 W[m] = np.dot(Y[m].T, Z).dot(covW) * tau[m]
                 WW[m] = np.dot(W[m].T, W[m]) + covW*D[m]
 
+        # 
+        # Update the latent variables
+        #
+        
+        # Efficient and robust way of computing
+        # solve(diag(1,K) + tau * WW^t)
+        covZ = np.diag(np.ones(K))
+        for m in range(M):
+            covZ = covZ + tau[m]*WW[m]
+        cho = linalg.cholesky(covZ, lower=False)
+        covZ = np.linalg.inv(covZ)
+        det = -2*np.sum(np.log(np.diag(cho)))
+        lb_qx = det
+
+        Z = Z*0
+        for m in range(M):
+            Z = Z + Y[m].dot(W[m])*tau[m]
+        Z = Z.dot(covZ)
+        ZZ = np.dot(Z.T, Z) + N*covZ
+
         # moar stuff to come ...
 
         # TODO: change calculation of lower bound
