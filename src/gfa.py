@@ -5,7 +5,7 @@ This is a Python implementation of the file ./R/CCAGFA.R in the R package CCAGFA
 
 from __future__ import division, print_function
 import numpy as np
-from scipy import special
+from scipy import special, linalg
 import math
 
 DEBUG = True
@@ -161,7 +161,7 @@ def gfa(Y, K,
     # The projections
     # No need to initialize projections randomly ,since their updating
     # step is the first one; just define the variables here
-    low_mem = True
+    #low_mem = True
     W = [None]*M  # the means
     if not low_mem:
         covW = [None]*M  # the covariances
@@ -251,10 +251,36 @@ def gfa(Y, K,
             if rotate:
                 # TODO: par["K"] = K ?
                 pass
-
         # endif len(keep) != K and dropK
 
-        # moar stuff ...
+        #
+        # Update the projections
+        #
+        lb_qw = np.empty(M)  # Computes also the determinant of covW needed for the lower bound
+        for m in range(M):
+            # Efficient and robust way of computing
+            # solve(diag(alpha) + tau * ZZ^T)
+            tmp = 1/np.sqrt(alpha[m, :])
+            # Cholesky decomposition
+            # R package uses upper triangular part, as does scipy (but NOT numpy)
+            diag_tau = np.diag(np.tile(tau, K)[:K])
+            cho_before = np.outer(tmp, tmp) * ZZ + diag_tau
+            cho = linalg.cholesky(cho_before)
+            det = -2*np.sum(np.log(np.diag(cho))) - np.sum(np.log(alpha[m, :])) - K*np.log(tau[m])
+            lb_qw[m] = det
+            if not low_mem:
+                # chol2inv calculates the inverse of the matrix whose Choleski decomposition was given.
+                # Python doesn't have this function, so I'll just take the inverse of the matrix itself
+                # without going through its Cholesky decomposition
+                covW[m] = 1/tau[m] * np.outer(tmp, tmp) * np.linalg.inv(cho_before)
+                W[m] = np.dot(Y[m].T, Z).dot(covW[m]) * tau[m]
+                WW[m] = np.dot(W[m].T, W[m]) + covW[m]*D[m]
+            else:
+                covW = 1/tau[m] * np.outer(tmp, tmp) * np.linalg.inv(cho_before)
+                W[m] = np.dot(Y[m].T, Z).dot(covW) * tau[m]
+                WW[m] = np.dot(W[m].T, W[m]) + covW*D[m]
+
+        # moar stuff to come ...
 
         # TODO: change calculation of lower bound
         # this is just placeholder so it doesn't do iter_max=10e5 loops every run, which takes 30 sec
@@ -288,6 +314,6 @@ def gfa(Y, K,
 # TODO: remove later, just for testing, to see if this shit runs
 if __name__ == "__main__":
     Y_1 = np.array([[-1, 1], [-2, 2]])
-    Y_2 = np.array([[10, 11, 12], [20, 22, 24], [30, 33, 36], [40, 44, 48]])
+    Y_2 = np.array([[10, 11, 12], [20, 22, 24]])
     Y = [Y_1, Y_2]
     gfa(Y, K=8)
