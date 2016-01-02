@@ -5,7 +5,10 @@ This is a Python implementation of the file ./R/CCAGFA.R in the R package CCAGFA
 
 from __future__ import division, print_function
 import numpy as np
-from scipy import special, linalg
+import scipy as sp
+import scipy.special
+import scipy.linalg
+import scipy.optimize
 import math
 
 DEBUG = True
@@ -146,11 +149,11 @@ def gfa(Y, K,
         b_ard = np.ones((M, K))     # The parameters of the Gamma distribution
         a_ard = alpha_0 + D/2       #       for ARD precisions
         # psi is digamma, derivative of the logarithm of the gamma function
-        digammaa_ard = special.psi(a_ard)
+        digammaa_ard = sp.special.psi(a_ard)
     tau = np.repeat(init_tau, M)    # The mean noise precisions
     a_tau = alpha_0t + N*D/2        # The parameters of the Gamma distribution
     b_tau = np.zeros(M)             #   for the noise precisions
-    digammaa_tau = special.psi(a_tau)  # Constants needed for computing the lower bound
+    digammaa_tau = sp.special.psi(a_tau)  # Constants needed for computing the lower bound
     lgammaa_tau = -np.sum(np.vectorize(math.lgamma)(a_tau))
     lb_pt_const = -M*np.vectorize(math.lgamma)(alpha_0t) + M*alpha_0t*np.log(beta_0t)
 
@@ -180,8 +183,17 @@ def gfa(Y, K,
         else:
             WW[m] = np.dot(W[m].T, W[m]) + covW*D[m]
 
-    # TODO: These are for alpha, U, and V
-    # Rotation parameters
+    # Rotation parameters (full rank only)
+    if(rotate):
+        Rot = np.diag(np.ones(K))       # The rotation matrix R (in ICML11 paper)
+        RotInv = np.diag(np.ones(K))    # Its inverse
+        r = np.array(Rot).flatten()     # Vectorizd version of R, will be passed to optimization function
+
+        # parameter dict for the optimization function
+        # scipy.optimize takes these optional parameters as a tuple and passes them to the objective function 
+        # but store them as dict first for easier modification
+        par_dict = {'K': K, 'D': D, 'Ds': Ds, 'N': N, 'WW': WW, 'ZZ': ZZ, 'M': M}
+
     
     # Use R-rank factorization of alpha
     if not R == "full":
@@ -249,8 +261,7 @@ def gfa(Y, K,
             else:
                 b_ard = np.ones((M, K))
             if rotate:
-                # TODO: par["K"] = K ?
-                pass
+                par_dict['K'] = K
         # endif len(keep) != K and dropK
 
         #
@@ -265,7 +276,7 @@ def gfa(Y, K,
             # R package uses upper triangular part, as does scipy (but NOT numpy)
             diag_tau = np.diag(np.tile(tau, K)[:K])
             cho_before = np.outer(tmp, tmp) * ZZ + diag_tau
-            cho = linalg.cholesky(cho_before)
+            cho = sp.linalg.cholesky(cho_before)
             det = -2*np.sum(np.log(np.diag(cho))) - np.sum(np.log(alpha[m, :])) - K*np.log(tau[m])
             lb_qw[m] = det
             if not low_mem:
@@ -289,7 +300,7 @@ def gfa(Y, K,
         covZ = np.diag(np.ones(K))
         for m in range(M):
             covZ = covZ + tau[m]*WW[m]
-        cho = linalg.cholesky(covZ, lower=False)
+        cho = sp.linalg.cholesky(covZ, lower=False)
         covZ = np.linalg.inv(covZ)
         det = -2*np.sum(np.log(np.diag(cho)))
         lb_qx = det
@@ -299,6 +310,48 @@ def gfa(Y, K,
             Z = Z + Y[m].dot(W[m])*tau[m]
         Z = Z.dot(covZ)
         ZZ = np.dot(Z.T, Z) + N*covZ
+
+        #
+        # Optimization of the rotation (only start after the first
+        # iteration)
+        #
+        """
+        if(R=="full" & opts$rotate & iter > 1) {
+
+            # Update the parameter list for the optimizer
+            par$WW <- WW
+            par$ZZ <- ZZ
+
+            # Always start from the identity matrix, i.e. no rotation
+            r <- as.vector(diag(K))
+            if(opts$opt.method == "BFGS") {
+            r.opt <- try(optim(r,E,gradE,par,method="BFGS",
+                               control=list(reltol=opts$opt.bfgs.crit,
+                                            maxit=opts$opt.iter)), silent=TRUE)
+            }
+            if(opts$opt.method== "L-BFGS") {
+            r.opt <- try(optim(r,E,gradE,par,method="L-BFGS-B",
+                               control=list(maxit=opts$opt.iter,
+                                            factr=opts$lbfgs.factr)), silent=TRUE)
+            }
+        """
+
+        # TODO: uncomment, just testing the function E
+        # if R=="full" and rotate and iter_ > 0:
+        if R=="full" and rotate:
+            #Update the parameter list for the optimizer
+            par_dict["WW"] = WW
+            par_dict["ZZ"] = ZZ
+
+            # par <- list(K=K,D=D,Ds=Ds,N=N,WW=WW,ZZ=ZZ,M=M)
+            par = [par_dict[key] for key in ['K', 'D', 'Ds', 'N', 'WW', 'ZZ', 'M']]
+
+            # Always start from the identity matrix, i.e. no rotation
+            r = np.diag(np.ones(K)).flatten()
+            if opt_method == "BFGS":
+                pass
+            if opt_method == "L-BFGS":
+                print(gradE(r, *par))
 
         # moar stuff to come ...
 
@@ -315,6 +368,8 @@ def gfa(Y, K,
                 break
 
     if DEBUG:
+        pass
+        """
         print("Z")
         print(np.array(Z))
         print("covZ")
@@ -328,7 +383,48 @@ def gfa(Y, K,
         print(covW)
         print("WW")
         print(WW)
+        """
 
+
+def E(r, K, D, Ds, N, WW, ZZ, M):
+    """
+    Evaluates the (negative) cost function valule wrt the transformation
+    matrix R used in the generic optimization routine
+
+    `r` is the flattened array of the rotation matrix R (see ICML11 paper)
+    """
+    R = np.array(r).reshape(K, K)
+    (U, d, V) = np.linalg.svd(R)
+
+    tmp = U*np.outer(np.ones(K), 1/d)
+    val = -np.sum(ZZ*np.dot(tmp, tmp.T))/2
+    val = val + (Ds-N)*np.sum(np.log(d))
+    for m in range(M):
+        val = val - D[m]*np.sum( np.log( (R*(WW[m].dot(R))).mean(axis=0) ) )
+    return -val
+
+
+def gradE(r, K, D, Ds, N, WW, ZZ, M):
+    """
+    Evaluates the (negative) gradient of the cost of the function E()
+    """
+    R = np.array(r).reshape(K, K)
+    U, d, V = np.linalg.svd(R)
+    Rinv = np.dot( V*np.outer(np.ones(K), 1/(d**2)), U.T )
+    gr_tmp = np.dot( U*np.outer(np.ones(K), 1/(d**2)), U.T ).dot(ZZ) \
+           + np.diag(np.ones(K)*(Ds-N))
+    gr = np.dot(gr_tmp, Rinv.T).flatten()
+
+    tmp1 = WW[0].dot(R)
+    tmp2 = 1/(R*tmp1).mean(axis=0)
+    tmp1 = D[0] * (tmp1*np.outer(np.ones(K), tmp2)).flatten()
+    gr = gr - tmp1
+    for m in range(1, M):
+        tmp1 = WW[m].dot(R)
+        tmp2 = 1/(R*tmp1).mean(axis=0)
+        tmp1 = D[m] * (tmp1*np.outer(np.ones(K), tmp2)).flatten()
+        gr = gr - tmp1
+    return -gr
 
 
 # TODO: remove later, just for testing, to see if this shit runs
