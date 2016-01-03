@@ -35,6 +35,10 @@ def main():
         plt.subplot(D[1], 1, d_m+1)
         plt.scatter(range(Ntrain), Y[1][:, d_m], facecolors='none')
     plt.suptitle("Observations of group 2 (5-dimensional)")
+
+    # TODO: run experiments
+    # gfa_experiments(Y, K)
+
     plt.show()
 
 

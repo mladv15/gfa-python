@@ -96,7 +96,7 @@ def gfa(Y, K,
     """
     # check that data is centered
     for m, Y_m in enumerate(Y):
-        if not np.all(np.abs(np.mean(Y_m, axis=1)) < 1e-7):
+        if not np.all(np.abs(np.mean(Y_m, axis=0)) < 1e-7):
             print("Warning: data from group %d does not have zero mean" % m)
 
     # check that there is more than one group of data
@@ -234,6 +234,7 @@ def gfa(Y, K,
         # remove columns which have most elements approaching 0
         # np.where() returns a tuple
         (keep,) = np.where(np.power(Z, 2).mean(axis=0) > 1e-7)  # column indices to keep
+        id_ = np.ones(K)
         if len(keep) != K and dropK:
             K = len(keep)
             if K == 0:
@@ -315,57 +316,74 @@ def gfa(Y, K,
         # Optimization of the rotation (only start after the first
         # iteration)
         #
-        """
-        if(R=="full" & opts$rotate & iter > 1) {
 
-            # Update the parameter list for the optimizer
-            par$WW <- WW
-            par$ZZ <- ZZ
-
-            # Always start from the identity matrix, i.e. no rotation
-            r <- as.vector(diag(K))
-            if(opts$opt.method == "BFGS") {
-            r.opt <- try(optim(r,E,gradE,par,method="BFGS",
-                               control=list(reltol=opts$opt.bfgs.crit,
-                                            maxit=opts$opt.iter)), silent=TRUE)
-            }
-            if(opts$opt.method== "L-BFGS") {
-            r.opt <- try(optim(r,E,gradE,par,method="L-BFGS-B",
-                               control=list(maxit=opts$opt.iter,
-                                            factr=opts$lbfgs.factr)), silent=TRUE)
-            }
-        """
-
-        # TODO: uncomment, just testing the function E
-        # if R=="full" and rotate and iter_ > 0:
-        if R=="full" and rotate:
+        if R=="full" and rotate and iter_ > 0:
             #Update the parameter list for the optimizer
             par_dict["WW"] = WW
             par_dict["ZZ"] = ZZ
 
             # par <- list(K=K,D=D,Ds=Ds,N=N,WW=WW,ZZ=ZZ,M=M)
-            par = [par_dict[key] for key in ['K', 'D', 'Ds', 'N', 'WW', 'ZZ', 'M']]
+            par = tuple([par_dict[key] for key in ['K', 'D', 'Ds', 'N', 'WW', 'ZZ', 'M']])
 
             # Always start from the identity matrix, i.e. no rotation
             r = np.diag(np.ones(K)).flatten()
             if opt_method == "BFGS":
-                pass
+                r_opt = sp.optimize.minimize(fun=E, x0=r, args=par, method='BFGS', jac=gradE,
+                                             options={'maxiter': opt_iter})  # no reltol in SciPy
             if opt_method == "L-BFGS":
-                print(gradE(r, *par))
+                r_opt = sp.optimize.minimize(fun=E, x0=r, args=par, method='L-BFGS-B', jac=gradE,
+                                             options={'maxiter': opt_iter})  # factr deprecated
+
+            # print(r_opt)
+            if not r_opt.success:
+                # sometimes work, indicating that the loss function E and the gradient gradE are correct?
+                # mostly doesn't work though because the code is not complete yet.
+                print("\n=============================================================")
+                print("Failure in optimizing the rotation. Turning the rotation off.")
+                print("=============================================================\n")
+                rotate = False
+            else:
+                # Update the parameters involved in the rotation:
+                Rot = r_opt.x.reshape(K, K)
+                U, d, V = np.linalg.svd(Rot)
+                det = np.sum(np.log(d))
+                RotInv = np.dot( V*np.outer(id_, 1/d), U.T )
+
+                Z = np.dot(Z, RotInv.T)
+                covZ = np.dot(RotInv.dot(covZ), RotInv.T)
+                ZZ = np.dot(Z.T, Z) + N*covZ
+
+                lb_qx = lb_qx - 2*det
+
+                for m in range(M):
+                    if not low_mem:
+                        W[m] = W[m].dot(Rot)
+                        covW[m] = np.dot(Rot, covW[m].T).dot(Rot)
+                        WW[m] = np.dot(W[m].T, W[m]) + covW[m]*D[m]
+                    else:
+                        # covW[m] is not stored, so it needs to be computed before rotation
+                        covW = (WW[m] - np.dot(W[m].T, W[m]))/D[m]
+                        W[m] = W[m].dot(Rot)
+                        covW = np.dot(Rot.T, covW).dot(Rot)
+                        WW[m] = np.dot(W[m].T, W[m]) + covW*D[m]
+
+                    lb_qw[m] = lb_qw[m] + 2*det
 
         # moar stuff to come ...
 
         # TODO: change calculation of lower bound
-        # this is just placeholder so it doesn't do iter_max=10e5 loops every run, which takes 30 sec
-        cost.append(1337)
-
         if verbose == 2:
             print("Iteration: %d/ cost: 1337/ K: %d" % (iter_, K))
+        """
         # Convergence if the relative change in cost is small enough
         if iter_ > 0:
             diff = cost[iter_] - cost[iter_-1]
             if abs(diff)/abs(cost[iter_]) < iter_crit or iter_ == iter_max:
                 break
+        """
+        # TODO: remove this later, this is just here to prevent us from doing the default `iter_max`=10e5 loops
+        if iter_ > 10:
+            break
 
     if DEBUG:
         pass
@@ -429,7 +447,7 @@ def gradE(r, K, D, Ds, N, WW, ZZ, M):
 
 # TODO: remove later, just for testing, to see if this shit runs
 if __name__ == "__main__":
-    Y_1 = np.array([[-1, 1], [-2, 2]])
-    Y_2 = np.array([[10, 11, 12], [20, 22, 24]])
+    Y_1 = np.array([[1, 2], [-1, -2]])
+    Y_2 = np.array([[10, 11, 12], [-10, -11, -12]])
     Y = [Y_1, Y_2]
     gfa(Y, K=8)
