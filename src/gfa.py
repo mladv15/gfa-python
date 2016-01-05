@@ -196,7 +196,7 @@ def gfa(Y, K,
 
     
     # Use R-rank factorization of alpha
-    if not R == "full":
+    if R != "full":
         U = np.abs(np.random.randn(M, R))
         lu = len(U)
         u_mu = np.repeat(0, M)
@@ -258,7 +258,13 @@ def gfa(Y, K,
             if R != "full":
                 V = V[keep, :]
                 v_mu = v_mu[keep]
-                # TODO: update x, lv and par
+                x = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
+                lv = len(V)
+                par_uv['K'] = K
+                par_uv['getv'] = range(lu, lu + lv)
+                par_uv['getumean'] = range(lu 0 lv, lu + lv + M) 
+                par_uv['getvmean'] = range(lu + lv + M, len(x))
+                par_uv['w2'] = np.zeros((M, K))
             else:
                 b_ard = np.ones((M, K))
             if rotate:
@@ -281,7 +287,7 @@ def gfa(Y, K,
             det = -2*np.sum(np.log(np.diag(cho))) - np.sum(np.log(alpha[m, :])) - K*np.log(tau[m])
             lb_qw[m] = det
             if not low_mem:
-                # chol2inv calculates the inverse of the matrix whose Choleski decomposition was given.
+                # chol2inv calculates the inverse of the matrix whose Cholesky decomposition was given.
                 # Python doesn't have this function, so I'll just take the inverse of the matrix itself
                 # without going through its Cholesky decomposition
                 covW[m] = 1/tau[m] * np.outer(tmp, tmp) * np.linalg.inv(cho_before)
