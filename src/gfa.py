@@ -262,7 +262,7 @@ def gfa(Y, K,
                 lv = len(V)
                 par_uv['K'] = K
                 par_uv['getv'] = range(lu, lu + lv)
-                par_uv['getumean'] = range(lu 0 lv, lu + lv + M) 
+                par_uv['getumean'] = range(lu + lv, lu + lv + M) 
                 par_uv['getvmean'] = range(lu + lv + M, len(x))
                 par_uv['w2'] = np.zeros((M, K))
             else:
