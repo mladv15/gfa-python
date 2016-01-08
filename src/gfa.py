@@ -220,7 +220,7 @@ def gfa(Y, K,
                 'D': D, \
                 'lambda': lambda_}
         
-        par_uv_w2 = np.zeros((M, K))
+        par_uv['w2'] = np.zeros((M, K))
 
 
     cost = []  # for storing the lower bounds
@@ -450,6 +450,110 @@ def gradE(r, K, D, Ds, N, WW, ZZ, M):
         gr = gr - tmp1
     return -gr
 
+def gfa_prediction(pred, Y, model, sample=False, nSample=100):
+    # Function for making predictions with the model. Gives the
+    # mean prediction and the mean and covariance of the latent
+    # variables. The predictive distribution itself does not have
+    # a closed-form expression, so the function also allows drawing
+    # samples from it.
+    #
+    # Inputs:
+    #   pred:  Binary vector of length 2, indicating which of the
+    #          two data sets have been observed. (1,0) indicates
+    #          we observe the first data set and want to predict
+    #          the values for the latter, and (0,1) does the opposite.
+    #          Using (1,1) allows computing the latent variables
+    #          for new test samples where both views are observed.
+    #   Y   :  The test data as a list of length 2, given in the
+    #          same format as for the function GFA(). The data
+    #          matrix for the missing views can be anything, e.g.
+    #          zeros, but it needs to exist
+    #   model: A model learned from training data using GFA()
+    #   sample: Should we sample observations from the full predictive
+    #           distribution?
+    #   nSample: How many samples to draw if sample==TRUE
+    #
+    #
+    # Outputs:
+    # A list containing:
+    #   Y    : The mean predictions as list. Observed data sets are retained
+    #          as they were.
+    #   Z    : Mean latent variables of the test samples, given the observed
+    #          data; N times K matrix
+    #   covZ : Covariance of the latent variables; K times K matrix
+    #   sam  : Samples drawn from the predictive distribution, only
+    #          returned if sample==TRUE. A list of Z, W and Y.
+    #          Z is nSample times N times K matrix of the samples values.
+    #          W and Y are M-element lists where only the predicted
+    #          views are included (to avoid storing nSample identical
+    #          copies of the observed data), each being a multidimensional
+    #          array of nSample times the size of W and Y, respectively.
+    
+    (tr, ) = np.where(pred == 1) # The observed data sets
+    (pr, ) = np.where(pred == 0) # The data sets that need to be predicted
+    
+    N = Y[tr[0]].shape[0]
+    M = len(model['D'])
+
+    if isinstance(model['covW'], np.ndarray): # R: if (!is.null(dim(model$covW))) ?
+        model['covW'] = [];
+        for m in range(M):
+            model['covW'][m] = (model['WW'][m] - np.dot(model['W'][m].T, model['W'][m])) / model['D'][m]
+
+    # Estimate the covariance of the latent variables
+    covZ = np.eye(model['K'])
+    for m in tr:
+        covZ = covZ + model['tau'][m] * model['WW'][m]
+
+    # Estimate the latent variables
+    (eV, eW) = np.linalg.eigh(covZ)
+    covZ = np.dot(eW * np.outer(np.repeat(1, model['K'], 1 / eV), eW.T))
+    Z = np.zeros(N, model['K'])
+    for m in tr:
+        Z = Z + Y[m].dot(model['W'][m]) * model['tau'][m]
+
+    Z = Z.dot(covZ)
+    
+    # Add a tiny amount of noise on top of the latent variables,
+    # to supress possible artificial structure in components that 
+    # have effectively been turned off
+    Z = Z + model['addednoise'] * np.random.randn(N, model['K']).dot(sp.linalg.cholesky(covZ, lower=False))
+    
+    # The prediction
+    # NOTE: The ICML'11 paper has a typo in the prediction formula
+    # on page 5. The mean prediction should have W_2^T instead of W_2.
+    for m in pr:
+        Y[m] = np.dot(Z, model['W'][m].T)
+    
+    # Sample from the predictive distribution
+    # Note that this code is fairly slow fow large nSample
+    if sample:
+        sam = {}
+        sam['Z'] = np.zeros(model['K'], nSample, N)
+        sam['Y'] = [None] * M
+        sam['W'] = [None] * M
+        cholW = [None] * M
+        for m in pr:
+            cholW[m] = sp.linalg.cholesky(model['covW'][m], lower=False)
+            sam['W'][m] = np.zeros(model['K'], nSample, model['D'][m])
+            sam['Y'][m] = np.zeros(model['D'][m], nSample, N)
+    
+    cholZ = np.linalg.cholesky(covZ, lower=False)
+    for i in range(nSample):
+        Ztemp = Z + np.random.randn(N, model['K']).dot(cholZ)
+        # TODO: A bit unsure of this step, indexing in R and python are different
+        # Used transpose of what the R code said since dimensions were different in python
+        sam['Z'][:, i, :] = Ztemp.T 
+        for m in pr:
+            Wtemp = model['W'][m] + np.random.randn(model['D'][m], model['K']).dot(cholW[m])
+            sam['W'][m][:, i, :] = Wtemp.T
+            var = 1 / np.sqrt(model['tau'][m])
+            sam['Y'][m][:, i, :] = (np.dot(Ztemp, Wtemp.T) + var * np.random.randn(N, model['D'][m])).T
+    
+    if sample:
+        return {'Y': Y, 'Z': Z, 'covZ': covZ, 'sam': sam}
+    else:
+        return {'Y': Y, 'Z': Z, 'covZ': covZ}
 
 # TODO: remove later, just for testing, to see if this shit runs
 if __name__ == "__main__":
