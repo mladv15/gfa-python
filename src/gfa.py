@@ -374,8 +374,18 @@ def gfa(Y, K,
                         WW[m] = np.dot(W[m].T, W[m]) + covW*D[m]
 
                     lb_qw[m] = lb_qw[m] + 2*det
-
-        # moar stuff to come ...
+        
+        # Update alpha, the ARD parameters
+        if R == "full":
+            for m in range(M):
+                tmp = beta_0t + np.diag(WW[m]) / 2
+                alpha[m, :] = a_ard[m] / tmp
+                b_ard[m, :] = tmp
+        else:
+            for m in range(M):
+                par_uv['w2'][m, :] = np.diag(WW[m])
+            
+            #res = sp.optimizeTODO
 
         # TODO: change calculation of lower bound
         if verbose == 2:
@@ -449,6 +459,41 @@ def gradE(r, K, D, Ds, N, WW, ZZ, M):
         tmp1 = D[m] * (tmp1*np.outer(np.ones(K), tmp2)).flatten()
         gr = gr - tmp1
     return -gr
+
+def Euv(x, par):
+    #
+    # Evaluates the cost function value wrt the low-rank
+    # factorization of alpha used in the generic optimization routine
+    U = x[par['getu']].reshape(par['M'], par['R'])
+    V = x[par['getv']].reshape(par['K'], par['R'])
+    u_mu = x[par['getumean']]
+    v_mu = x[par['getvmean']]
+    logalpha = np.dot(U, V.T) + np.outer(u_mu, np.ones(par['K'])) + np.outer(np.ones(par['M']), v_mu)
+    E = np.sum(np.dot(par['D'].T, logalpha)) - np.sum(par['w2'] * np.exp(logalpha))
+    if par['lambda'] != 0:
+        E = E - par['lambda'] * (np.sum(V ** 2) + np.sum(U ** 2))
+
+    return E / 2
+
+def gradEuv(x, par):
+    #
+    # Evaluates the gradient of the cost function Euv()
+    #
+    U = x[par['getu']].reshape(par['M'], par['R'])
+    V = x[par['getv']].reshape(par['K'], par['R'])
+    u_mu = x[par['getumean']]
+    v_mu = x[par['getvmean']]
+    alphaiAlphaW2 = np.outer(par['D'], np.ones(par['K'])) - np.exp(np.dot(U, V.T) + np.outer(u_mu, np.ones(par['K'])) + np.outer(np.ones(par['M']), v_mu)) * par['w2']
+    gradU = alphaiAlphaw2.dot(V)
+    gradV = np.dot(alphaiAlphaw2.T, U)
+    if par['lambda'] != 0:
+        gradU = gradU - par['lambda'] * 2 * U
+        gradV = gradV - par['lambda'] * 2 * V
+
+    grad_umean = np.sum(alphaiAlphaw2, axis=1)
+    grad_vmean = np.sum(alphaiAlphaw2, axis=0)
+    grad = np.hstack((gradU.flatten(), gradV.flatten(), grad_umean, grad_vmean))
+    return grad / 2
 
 def gfa_prediction(pred, Y, model, sample=False, nSample=100):
     # Function for making predictions with the model. Gives the
