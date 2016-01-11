@@ -385,7 +385,51 @@ def gfa(Y, K,
             for m in range(M):
                 par_uv['w2'][m, :] = np.diag(WW[m])
             
-            #res = sp.optimizeTODO
+            # Always start from the identity matrix, i.e. no rotation
+            r = np.diag(np.ones(K)).flatten()
+            minBound = np.hstack(np.repeat(-np.sqrt(500/R), M*R+K*R), np.repeat(-50, M+K))
+            maxBound = np.hstack(np.repeat(np.sqrt(500/R), M*R+K*R), np.repeat(50, M+K))
+            res = sp.optimize.minimize(fun=Euv, x0=r, args=par_uv, method='L-BFGS-B', \
+                    jac=gradEuv, options={'maxIter': opt_iter}, \
+                    bounds=(minBound, maxBound))
+
+            if not res.success:
+                cost[iter_] = None
+                raise ValueError("Problems in optimization. Try a new initialization.")
+                # terminate the algorithm (next model to learn)
+
+            x = res.x
+            U = x[par['getu']].reshape(par['M'], par['R'])
+            V = x[par['getv']].reshape(par['K'], par['R'])
+            u_mu = x[par['getumean']]
+            v_mu = x[par['getvmean']]
+            alpha = np.exp(np.dot(U, V.T) + np.outer(u_mu, np.ones(K)) + np.outer(np.ones(M), v_mu)) 
+        
+        #
+        # Update tau, the noise precisions
+        #
+        for m in range(M):
+            b_tau[m] = prior_beta_0t + (Yconst[m] + np.sum(WW[m] * ZZ) - 2 * np.sum(Z * Y[m].dot(W[m]))) / 2
+        
+        tau = a_tau / b_tau
+
+        #
+        # Calculate the lower bound.
+        # Consists of calculating the likelihood term and KL-divergences between the
+        # factorization and the priors
+        #
+        logtau = digammaa_tau - np.log(b_tau)
+        if R == "full":
+            for m in range(M):
+                logalpha[m, :] = digammaa_ard[m] - log(b_ard[m, :])
+        else:
+            logalpha = log(alpha)
+
+        lb_p = const + N * np.dot(D.T, logtau) / 2 - np.dot((b_tau - prior_beta_0t).T, tau)
+        lb = lb_p
+
+        # E[ ln p(Z) ] - E[ ln q(Z) ]
+        # TODO: more coming
 
         # TODO: change calculation of lower bound
         if verbose == 2:
