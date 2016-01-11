@@ -399,10 +399,10 @@ def gfa(Y, K,
                 # terminate the algorithm (next model to learn)
 
             x = res.x
-            U = x[par['getu']].reshape(par['M'], par['R'])
-            V = x[par['getv']].reshape(par['K'], par['R'])
-            u_mu = x[par['getumean']]
-            v_mu = x[par['getvmean']]
+            U = x[par_uv['getu']].reshape(par_uv['M'], par_uv['R'])
+            V = x[par_uv['getv']].reshape(par_uv['K'], par_uv['R'])
+            u_mu = x[par_uv['getumean']]
+            v_mu = x[par_uv['getvmean']]
             alpha = np.exp(np.dot(U, V.T) + np.outer(u_mu, np.ones(K)) + np.outer(np.ones(M), v_mu)) 
         
         #
@@ -421,14 +421,31 @@ def gfa(Y, K,
         logtau = digammaa_tau - np.log(b_tau)
         if R == "full":
             for m in range(M):
-                logalpha[m, :] = digammaa_ard[m] - log(b_ard[m, :])
+                logalpha[m, :] = digammaa_ard[m] - np.log(b_ard[m, :])
         else:
             logalpha = log(alpha)
 
         lb_p = const + N * np.dot(D.T, logtau) / 2 - np.dot((b_tau - prior_beta_0t).T, tau)
         lb = lb_p
-
+        
         # E[ ln p(Z) ] - E[ ln q(Z) ]
+        lb_px = -np.sum(np.diag(ZZ)) / 2
+        lb_qx = -N * lb_qx / 2 - N * K / 2
+        lb = lb + lb_px - lb_qx
+
+        # E[ ln p(W) ] - E[ ln q(W) ]
+        if R == "full":
+            lb_pw = 0
+            for m in range(M):
+                lb_pw = lb_pw + D[m] / 2 * np.sum(logalpha[m, :]) - np.sum(np.diag(WW[m]) * alpha[m, :]) / 2
+        else:
+            lb_pw = Euv(x, par_uv) # TODO: Correct?
+        
+        for m in range(M):
+            lb_qw[m] = D[m] * lb_qw[m] / 2 - D[m] * K / 2
+        
+        lb = lb + lb_pw - np.sum(lb_qw)
+
         # TODO: more coming
 
         # TODO: change calculation of lower bound
