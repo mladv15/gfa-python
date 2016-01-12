@@ -445,8 +445,20 @@ def gfa(Y, K,
             lb_qw[m] = D[m] * lb_qw[m] / 2 - D[m] * K / 2
         
         lb = lb + lb_pw - np.sum(lb_qw)
+        
+        # E[ ln p(alpha) ] - E[ ln q(alpha) ]
+        if R == "full":
+            lb_pa = M * K * (-sp.special.gammaln(prior_alpha_0) + prior_alpha_0 * np.log(prior_beta_0)) + (prior_alpha_0 - 1) * np.sum(logalpha) - prior_beta_0 * np.sum(alpha)
+            lb_qa = -K * np.sum(sp.special.gammaln(a_ard)) + np.sum(a_ard * np.sum(np.log(b_ard), axis=1)) + np.sum((a_ard - 1) * np.sum(logalpha, axis=1)) - np.sum(b_ard * alpha)
+            lb = lb + lb_pa - lb_qa
 
-        # TODO: more coming
+        # E[ln p(tau) ] - E[ ln q(tau) ]
+        lb_pt = lb_pt_const + np.sum((prior_alpha_0t - 1) * logtau) - np.sum(prior_beta_0t * tau)
+        lb_qt = lgammaa_tau + np.dot(a_tau.T, np.log(b_tau)) + np.dot((a_tau - 1).T, logtau) - np.dot(b_tau.T, tau)
+        lb = lb + lb_pt - lb_qt
+
+        # Store the cost function
+        cost.append(lb)
 
         # TODO: change calculation of lower bound
         if verbose == 2:
