@@ -20,25 +20,30 @@ def main():
     (Z, Y), (Ztest, Ytest) = generate_data()
     K = 4
 
-    # TODO: train and test GFA
-    model = gfa(Y, K=8)
-
     # Plot true latent components
     for k in range(K):
-        plt.subplot(4, 1, k+1)
+        plt.subplot(K, 1, k+1)
         plt.scatter(range(Ntrain), Z[:, k], facecolors='none')
+    plt.suptitle("True latent components")
 
     # Remove later, but could be interesting to plot the actual observations
     # Group 1 is 15-dimensional, so I'll just
     # plot observations of group 2 (5 dimensional)
+    """
     plt.figure()
     for d_m in range(D[1]):
         plt.subplot(D[1], 1, d_m+1)
         plt.scatter(range(Ntrain), Y[1][:, d_m], facecolors='none')
     plt.suptitle("Observations of group 2 (5-dimensional)")
+    """
 
-    # TODO: run experiments
-    #gfa_experiments(Y, K)
+    model = gfa_experiments(Y, K, Nrep=1)
+
+    plt.figure()
+    for k in range(model['K']):
+        plt.subplot(model['K'], 1, k+1)
+        plt.scatter(range(Ntrain), model['Z'][:, k], facecolors='none')
+    plt.suptitle("Estimated active latent components")
 
     plt.show()
 

@@ -29,16 +29,16 @@ def gfa_experiments(Y, K, Nrep=10, verbose=2, **opts):
     for rep in range(Nrep):
         model = gfa(Y, K, **opts)
         models.append(model)
-        # lb.append(model.cost)  # not defined yet
+        lb.append(model['cost'][-1])  # not defined yet
         if verbose == 1:
             print("Run %d/%d: %d iterations with final cost %f") % (rep, Nrep, 1337, 1338)
     # uncomment below when done
-    # k = np.argmax(lb)
-    # return models[k]
+    k = np.argmax(lb)
+    return models[k]
 
 
 def gfa(Y, K,
-        R="full", lmbda=0.1, rotate=True,
+        R="full", lambda_=0.1, rotate=True,
         opt_method="L-BFGS", opt_iter=10e5, lbfgs_factr=10e10, bfgs_crit=10e-5,
         init_tau=1000,
         iter_crit=10e-6, iter_max=10e5,
@@ -203,9 +203,6 @@ def gfa(Y, K,
         V = np.abs(np.random.randn(K, R))
         lv = len(V)
         v_mu = np.repeat(0, K)
-
-        # TODO
-        lambda_ = 1
 
         x = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
         x = np.random.randn(len(x)) / 100
@@ -460,18 +457,13 @@ def gfa(Y, K,
         # Store the cost function
         cost.append(lb)
 
-        # TODO: change calculation of lower bound
         if verbose == 2:
             print("Iteration: %d/ cost: %d/ K: %d" % (iter_, cost[len(cost)-1], K))
-        """
         # Convergence if the relative change in cost is small enough
         if iter_ > 0:
             diff = cost[iter_] - cost[iter_-1]
             if abs(diff)/abs(cost[iter_]) < iter_crit or iter_ == iter_max:
                 break
-        """
-        if iter_ > 10:
-            break
 
     if R == "full":
         return {'W': W, 'covW': covW, 'ZZ': ZZ, 'WW': WW, 'Z': Z, 'covZ': covZ, \
