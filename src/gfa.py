@@ -470,27 +470,18 @@ def gfa(Y, K,
             if abs(diff)/abs(cost[iter_]) < iter_crit or iter_ == iter_max:
                 break
         """
-        # TODO: remove this later, this is just here to prevent us from doing the default `iter_max`=10e5 loops
         if iter_ > 10:
             break
 
-    if DEBUG:
-        pass
-        """
-        print("Z")
-        print(np.array(Z))
-        print("covZ")
-        print(covZ)
-        print("ZZ")
-        print(ZZ)
-
-        print("W")
-        print(np.array(W))
-        print("covW")
-        print(covW)
-        print("WW")
-        print(WW)
-        """
+    if R == "full":
+        return {'W': W, 'covW': covW, 'ZZ': ZZ, 'WW': WW, 'Z': Z, 'covZ': covZ, \
+                'tau': tau, 'alpha': alpha, 'cost': cost, 'D': D, 'K': K, \
+                'addednoise': addednoise, 'datavar': datavar, 'iter': iter_, 'R': R}
+    else:
+        return {'W': W, 'covW': covW, 'ZZ': ZZ, 'WW': WW, 'Z': Z, 'covZ': covZ, \
+                'tau': tau, 'alpha': alpha, 'cost': cost, 'D': D, 'K': K, \
+                'addednoise': addednoise, 'datavar': datavar, 'iter': iter_, 'R': R, \
+                'U': U, 'V': V, 'u_mu': u_mu, 'v_mu': v_mu}
 
 
 def E(r, K, D, Ds, N, WW, ZZ, M):

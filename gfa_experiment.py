@@ -5,6 +5,7 @@ Python implementation of the file ./demo/CCAGFAExperiment.R in the R package CCA
 from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
+from src.gfa import gfa
 from src.gfa import gfa_experiments
 
 # Dimensions
@@ -20,7 +21,8 @@ def main():
     K = 4
 
     # TODO: train and test GFA
-    # model = gfa(Y, K=8)
+    model = gfa(Y, K=8)
+    print(model)
 
     # Plot true latent components
     for k in range(K):
@@ -37,7 +39,7 @@ def main():
     plt.suptitle("Observations of group 2 (5-dimensional)")
 
     # TODO: run experiments
-    # gfa_experiments(Y, K)
+    #gfa_experiments(Y, K)
 
     plt.show()
 
