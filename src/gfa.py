@@ -462,7 +462,7 @@ def gfa(Y, K,
 
         # TODO: change calculation of lower bound
         if verbose == 2:
-            print("Iteration: %d/ cost: 1337/ K: %d" % (iter_, K))
+            print("Iteration: %d/ cost: %d/ K: %d" % (iter_, cost[len(cost)-1], K))
         """
         # Convergence if the relative change in cost is small enough
         if iter_ > 0:

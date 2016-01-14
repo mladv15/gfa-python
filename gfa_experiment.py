@@ -22,7 +22,6 @@ def main():
 
     # TODO: train and test GFA
     model = gfa(Y, K=8)
-    print(model)
 
     # Plot true latent components
     for k in range(K):
