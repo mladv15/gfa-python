@@ -383,12 +383,12 @@ def gfa(Y, K,
                 par_uv['w2'][m, :] = np.diag(WW[m])
             
             # Always start from the identity matrix, i.e. no rotation
-            r = np.diag(np.ones(K)).flatten()
-            minBound = np.hstack(np.repeat(-np.sqrt(500/R), M*R+K*R), np.repeat(-50, M+K))
-            maxBound = np.hstack(np.repeat(np.sqrt(500/R), M*R+K*R), np.repeat(50, M+K))
+            r = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
+            minBound = np.hstack((np.repeat(-np.sqrt(500/R), M*R+K*R), np.repeat(-50, M+K)))
+            maxBound = np.hstack((np.repeat(np.sqrt(500/R), M*R+K*R), np.repeat(50, M+K)))
             res = sp.optimize.minimize(fun=Euv, x0=r, args=par_uv, method='L-BFGS-B', \
-                    jac=gradEuv, options={'maxIter': opt_iter}, \
-                    bounds=(minBound, maxBound))
+                    jac=gradEuv, options={'maxiter': opt_iter}, \
+                    bounds=tuple(zip(minBound, maxBound)))
 
             if not res.success:
                 cost[iter_] = None
@@ -420,7 +420,7 @@ def gfa(Y, K,
             for m in range(M):
                 logalpha[m, :] = digammaa_ard[m] - np.log(b_ard[m, :])
         else:
-            logalpha = log(alpha)
+            logalpha = np.log(alpha)
 
         lb_p = const + N * np.dot(D.T, logtau) / 2 - np.dot((b_tau - prior_beta_0t).T, tau)
         lb = lb_p
@@ -539,7 +539,7 @@ def gradEuv(x, par):
     V = x[par['getv']].reshape(par['K'], par['R'])
     u_mu = x[par['getumean']]
     v_mu = x[par['getvmean']]
-    alphaiAlphaW2 = np.outer(par['D'], np.ones(par['K'])) - np.exp(np.dot(U, V.T) + np.outer(u_mu, np.ones(par['K'])) + np.outer(np.ones(par['M']), v_mu)) * par['w2']
+    alphaiAlphaw2 = np.outer(par['D'], np.ones(par['K'])) - np.exp(np.dot(U, V.T) + np.outer(u_mu, np.ones(par['K'])) + np.outer(np.ones(par['M']), v_mu)) * par['w2']
     gradU = alphaiAlphaw2.dot(V)
     gradV = np.dot(alphaiAlphaw2.T, U)
     if par['lambda'] != 0:
