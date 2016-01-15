@@ -37,7 +37,7 @@ def main():
     plt.suptitle("Observations of group 2 (5-dimensional)")
     """
 
-    model = gfa_experiments(Y, K=4, Nrep=10, rotate=False)
+    model = gfa_experiments(Y, K=8, Nrep=10, rotate=False, verbose=1)
 
     print(model['datavar'])
 

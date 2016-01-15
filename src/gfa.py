@@ -30,6 +30,7 @@ def gfa_experiments(Y, K, Nrep=10, verbose=1, **opts):
         models.append(model)
         lb.append(model['cost'][-1])  # not defined yet
         if verbose == 1:
+            # TODO: this is just a placeholder, will add real values after gfa() is finished
             print("Run %d/%d: %d iterations with final cost %f" % (rep+1, Nrep, len(model['cost']), lb[rep]))
     k = np.argmax(lb)
     return models[k]
@@ -228,7 +229,6 @@ def gfa(Y, K,
         # Check if some components need to be removed
         # remove columns which have most elements approaching 0
         # np.where() returns a tuple
-        """
         (keep,) = np.where(np.power(Z, 2).mean(axis=0) > 1e-7)  # column indices to keep
         if len(keep) != K and dropK:
             K = len(keep)
@@ -239,13 +239,17 @@ def gfa(Y, K,
             # a normal (row) array. Since we're indexing with an array (`keep`), the Python default
             # is to return a column vector, so no need for a drop argument.
             Z = Z[:, keep]
-            covZ = covZ[keep, keep]
-            ZZ = ZZ[keep, keep]
+            # covZ = covZ[keep, keep] in R
+            covZ = covZ[keep][:, keep]
+            # ZZ = ZZ[keep, keep] in R
+            ZZ = ZZ[keep][:, keep]
             for m in range(M):
                 W[m] = W[m][:, keep]
                 if not low_mem:
-                    covW[m] = covW[m][keep, keep]
-                WW[m] = WW[m][keep, keep]
+                    # covW[m] = covW[m][keep, keep] in R
+                    covW[m] = covW[m][keep][:, keep]
+                # WW[m] = WW[m][keep, keep] in R
+                WW[m] = WW[m][keep][:, keep]
 
             alpha = alpha[:, keep]
             logalpha = logalpha[:, keep]
@@ -265,7 +269,6 @@ def gfa(Y, K,
             if rotate:
                 par_dict['K'] = K
         # endif len(keep) != K and dropK
-        """
 
         #
         # Update the projections
