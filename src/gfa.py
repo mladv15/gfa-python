@@ -22,7 +22,6 @@ def gfa_experiments(Y, K, Nrep=10, verbose=2, **opts):
     the algorithm.
     See GFA() for description of the inupts.
     """
-    # TODO: this is just a placeholder, will add real values after gfa() is finished
     opts["verbose"] = verbose
     lb = []  # lower bounds
     models = []  # the best one will be returned
@@ -31,6 +30,7 @@ def gfa_experiments(Y, K, Nrep=10, verbose=2, **opts):
         models.append(model)
         lb.append(model['cost'][-1])  # not defined yet
         if verbose == 1:
+            # TODO: this is just a placeholder, will add real values after gfa() is finished
             print("Run %d/%d: %d iterations with final cost %f") % (rep, Nrep, 1337, 1338)
     # uncomment below when done
     k = np.argmax(lb)
