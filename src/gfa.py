@@ -14,7 +14,7 @@ import math
 DEBUG = True
 
 
-def gfa_experiments(Y, K, Nrep=10, verbose=2, **opts):
+def gfa_experiments(Y, K, Nrep=10, verbose=1, **opts):
     """
     A wrapper for running the GFA model `Nrep` times
     and choosing the final model based on the best
@@ -30,9 +30,7 @@ def gfa_experiments(Y, K, Nrep=10, verbose=2, **opts):
         models.append(model)
         lb.append(model['cost'][-1])  # not defined yet
         if verbose == 1:
-            # TODO: this is just a placeholder, will add real values after gfa() is finished
-            print("Run %d/%d: %d iterations with final cost %f") % (rep, Nrep, 1337, 1338)
-    # uncomment below when done
+            print("Run %d/%d: %d iterations with final cost %f" % (rep+1, Nrep, len(model['cost']), lb[rep]))
     k = np.argmax(lb)
     return models[k]
 
@@ -96,7 +94,7 @@ def gfa(Y, K,
     """
     # check that data is centered
     for m, Y_m in enumerate(Y):
-        if not np.all(np.abs(np.mean(Y_m, axis=0)) < 1e-7):
+        if not np.all(np.abs(np.mean(Y_m, axis=0)) < 1e-7) and verbose == 2:
             print("Warning: data from group %d does not have zero mean" % m)
 
     # check that there is more than one group of data
@@ -124,9 +122,9 @@ def gfa(Y, K,
         rotate = False
 
     # Some constants for speeding up the computation
-    const = N*Ds/2*np.log(2*np.pi)  # constant factors for the lower bound
+    const = - N*Ds/2*np.log(2*np.pi)  # constant factors for the lower bound
     Yconst = [np.sum(np.vectorize(pow)(Y_m, 2)) for Y_m in Y]
-    id1 = np.ones(K)
+    id_ = np.ones(K)
     alpha_0 = prior_alpha_0   # Easier access for hyperprior values
     beta_0 = prior_beta_0
     alpha_0t = prior_alpha_0t
@@ -145,7 +143,7 @@ def gfa(Y, K,
     # ARD and noise parameters (What is ARD?)
     alpha = np.ones((M, K))     # The mean of the ARD precisions
     logalpha = np.ones((M, K))  # The mean of <\log alpha>
-    if R=="full":
+    if R == "full":
         b_ard = np.ones((M, K))     # The parameters of the Gamma distribution
         a_ard = alpha_0 + D/2       #       for ARD precisions
         # psi is digamma, derivative of the logarithm of the gamma function
@@ -230,8 +228,8 @@ def gfa(Y, K,
         # Check if some components need to be removed
         # remove columns which have most elements approaching 0
         # np.where() returns a tuple
+        """
         (keep,) = np.where(np.power(Z, 2).mean(axis=0) > 1e-7)  # column indices to keep
-        id_ = np.ones(K)
         if len(keep) != K and dropK:
             K = len(keep)
             if K == 0:
@@ -267,6 +265,7 @@ def gfa(Y, K,
             if rotate:
                 par_dict['K'] = K
         # endif len(keep) != K and dropK
+        """
 
         #
         # Update the projections
@@ -278,9 +277,10 @@ def gfa(Y, K,
             tmp = 1/np.sqrt(alpha[m, :])
             # Cholesky decomposition
             # R package uses upper triangular part, as does scipy (but NOT numpy)
-            diag_tau = np.diag(np.tile(tau, K)[:K])
+            # diag_tau = np.diag(np.tile(tau, K)[:K])
+            diag_tau = np.diag(1/(np.ones(K) * tau[m]))
             cho_before = np.outer(tmp, tmp) * ZZ + diag_tau
-            cho = sp.linalg.cholesky(cho_before)
+            cho = sp.linalg.cholesky(cho_before, lower=False)
             det = -2*np.sum(np.log(np.diag(cho))) - np.sum(np.log(alpha[m, :])) - K*np.log(tau[m])
             lb_qw[m] = det
             if not low_mem:
@@ -371,7 +371,8 @@ def gfa(Y, K,
                         WW[m] = np.dot(W[m].T, W[m]) + covW*D[m]
 
                     lb_qw[m] = lb_qw[m] + 2*det
-        
+        # endif rotate
+
         # Update alpha, the ARD parameters
         if R == "full":
             for m in range(M):
@@ -381,7 +382,7 @@ def gfa(Y, K,
         else:
             for m in range(M):
                 par_uv['w2'][m, :] = np.diag(WW[m])
-            
+
             # Always start from the identity matrix, i.e. no rotation
             r = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
             minBound = np.hstack((np.repeat(-np.sqrt(500/R), M*R+K*R), np.repeat(-50, M+K)))
@@ -422,9 +423,9 @@ def gfa(Y, K,
         else:
             logalpha = np.log(alpha)
 
-        lb_p = const + N * np.dot(D.T, logtau) / 2 - np.dot((b_tau - prior_beta_0t).T, tau)
+        lb_p = const + N * np.dot(D.T, logtau) / 2 - np.dot((b_tau - beta_0t).T, tau)
         lb = lb_p
-        
+
         # E[ ln p(Z) ] - E[ ln q(Z) ]
         lb_px = -np.sum(np.diag(ZZ)) / 2
         lb_qx = -N * lb_qx / 2 - N * K / 2
@@ -436,13 +437,13 @@ def gfa(Y, K,
             for m in range(M):
                 lb_pw = lb_pw + D[m] / 2 * np.sum(logalpha[m, :]) - np.sum(np.diag(WW[m]) * alpha[m, :]) / 2
         else:
-            lb_pw = Euv(x, par_uv) # TODO: Correct?
-        
+            lb_pw = Euv(x, par_uv)  # TODO: Correct?
+
         for m in range(M):
-            lb_qw[m] = D[m] * lb_qw[m] / 2 - D[m] * K / 2
-        
+            lb_qw[m] = - D[m] * lb_qw[m] / 2 - D[m] * K / 2
+
         lb = lb + lb_pw - np.sum(lb_qw)
-        
+
         # E[ ln p(alpha) ] - E[ ln q(alpha) ]
         if R == "full":
             lb_pa = M * K * (-sp.special.gammaln(prior_alpha_0) + prior_alpha_0 * np.log(prior_beta_0)) + (prior_alpha_0 - 1) * np.sum(logalpha) - prior_beta_0 * np.sum(alpha)
@@ -464,6 +465,11 @@ def gfa(Y, K,
             diff = cost[iter_] - cost[iter_-1]
             if abs(diff)/abs(cost[iter_]) < iter_crit or iter_ == iter_max:
                 break
+
+    # Add a tiny amount of noise on top of the latent variables,
+    # to supress possible artificial structure in components that
+    # have effectively been turned off
+    Z += addednoise*np.random.randn(N, K).dot(sp.linalg.cholesky(covZ, lower=False))
 
     if R == "full":
         return {'W': W, 'covW': covW, 'ZZ': ZZ, 'WW': WW, 'Z': Z, 'covZ': covZ, \
