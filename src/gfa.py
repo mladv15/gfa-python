@@ -221,7 +221,7 @@ def gfa(Y, K,
 
 
     cost = []  # for storing the lower bounds
-
+    
     #
     # The main loop
     #
@@ -278,7 +278,8 @@ def gfa(Y, K,
             tmp = 1/np.sqrt(alpha[m, :])
             # Cholesky decomposition
             # R package uses upper triangular part, as does scipy (but NOT numpy)
-            diag_tau = np.diag(np.tile(tau, K)[:K])
+            #diag_tau = np.diag(np.tile(tau, K)[:K])
+            diag_tau = np.eye(K) * 1 / tau[m]
             cho_before = np.outer(tmp, tmp) * ZZ + diag_tau
             cho = sp.linalg.cholesky(cho_before)
             det = -2*np.sum(np.log(np.diag(cho))) - np.sum(np.log(alpha[m, :])) - K*np.log(tau[m])
