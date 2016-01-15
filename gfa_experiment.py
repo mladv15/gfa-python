@@ -37,7 +37,7 @@ def main():
     plt.suptitle("Observations of group 2 (5-dimensional)")
     """
 
-    model = gfa_experiments(Y, K=4, Nrep=1, rotate=False)
+    model = gfa_experiments(Y, K=4, Nrep=10, rotate=False)
 
     print(model['datavar'])
 
@@ -62,9 +62,9 @@ def generate_data():
 
     # Precisions
     tau = [3, 6]  # noise precision for each group
-    alpha = np.empty((M, K))  # component precisions for each group
+    alpha = np.zeros((M, K))  # component precisions for each group
     alpha[0, :] = [1, 1, 1e6, 1]  # component precisions for group 1
-    alpha[1, :] = [1, 1, 1e6, 1]  # component precisions for group 2
+    alpha[1, :] = [1, 1, 1, 1e6]  # component precisions for group 2
 
     # Observations
     #   Y    : List of M data matrices. Y[m] is a matrix with
