@@ -51,7 +51,8 @@ def main():
     # Testing predictive inference
     res = gfa_prediction(np.array([1, 0]), Ytest, model, sample=True)
     plt.figure()
-    # TODO: plot the predicted Y?
+    totalDiff = np.sum(np.abs(Ytest[1] - res['Y'][1]))
+    print(totalDiff)
 
 def generate_data():
     # Latent samples
