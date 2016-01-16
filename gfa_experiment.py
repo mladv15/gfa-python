@@ -6,6 +6,7 @@ from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from src.gfa import gfa
+from src.gfa import gfa_prediction 
 from src.gfa import gfa_experiments
 
 # Dimensions
@@ -37,7 +38,7 @@ def main():
     plt.suptitle("Observations of group 2 (5-dimensional)")
     """
 
-    model = gfa_experiments(Y, K, Nrep=1)
+    model = gfa_experiments(Y, K=8, Nrep=10, rotate=False, verbose=1)
 
     plt.figure()
     for k in range(model['K']):
@@ -45,8 +46,12 @@ def main():
         plt.scatter(range(Ntrain), model['Z'][:, k], facecolors='none')
     plt.suptitle("Estimated active latent components")
 
-    plt.show()
-
+    #plt.show()
+    
+    # Testing predictive inference
+    res = gfa_prediction(np.array([1, 0]), Ytest, model, sample=True)
+    plt.figure()
+    # TODO: plot the predicted Y?
 
 def generate_data():
     # Latent samples
@@ -60,9 +65,9 @@ def generate_data():
 
     # Precisions
     tau = [3, 6]  # noise precision for each group
-    alpha = np.empty((M, K))  # component precisions for each group
+    alpha = np.zeros((M, K))  # component precisions for each group
     alpha[0, :] = [1, 1, 1e6, 1]  # component precisions for group 1
-    alpha[1, :] = [1, 1, 1e6, 1]  # component precisions for group 2
+    alpha[1, :] = [1, 1, 1, 1e6]  # component precisions for group 2
 
     # Observations
     #   Y    : List of M data matrices. Y[m] is a matrix with
