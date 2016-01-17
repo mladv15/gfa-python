@@ -197,12 +197,12 @@ def gfa(Y, K,
     # Use R-rank factorization of alpha
     if R != "full":
         U = np.abs(np.random.randn(M, R))
-        lu = len(U)
+        lu = U.size
         u_mu = np.repeat(0, M)
         V = np.abs(np.random.randn(K, R))
-        lv = len(V)
+        lv = V.size
         v_mu = np.repeat(0, K)
-
+        
         x = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
         x = np.random.randn(len(x)) / 100
 
@@ -258,7 +258,7 @@ def gfa(Y, K,
                 V = V[keep, :]
                 v_mu = v_mu[keep]
                 x = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
-                lv = len(V)
+                lv = V.size
                 par_uv['K'] = K
                 par_uv['getv'] = range(lu, lu + lv)
                 par_uv['getumean'] = range(lu + lv, lu + lv + M) 
@@ -398,7 +398,7 @@ def gfa(Y, K,
                 cost[iter_] = None
                 raise ValueError("Problems in optimization. Try a new initialization.")
                 # terminate the algorithm (next model to learn)
-
+            
             x = res.x
             U = x[par_uv['getu']].reshape(par_uv['M'], par_uv['R'])
             V = x[par_uv['getv']].reshape(par_uv['K'], par_uv['R'])
@@ -560,7 +560,7 @@ def gradEuv(x, par):
     grad = np.hstack((gradU.flatten(), gradV.flatten(), grad_umean, grad_vmean))
     return grad / 2
 
-def gfa_prediction(pred, Y, model, sample=False, nSample=100):
+def gfa_prediction(pred, y, model, sample=False, nSample=100):
     # Function for making predictions with the model. Gives the
     # mean prediction and the mean and covariance of the latent
     # variables. The predictive distribution itself does not have
@@ -601,7 +601,8 @@ def gfa_prediction(pred, Y, model, sample=False, nSample=100):
     
     (tr, ) = np.where(pred == 1) # The observed data sets
     (pr, ) = np.where(pred == 0) # The data sets that need to be predicted
-   
+  
+    Y = map(np.copy, y)
     
     N = Y[tr[0]].shape[0]
     M = len(model['D'])
@@ -665,10 +666,3 @@ def gfa_prediction(pred, Y, model, sample=False, nSample=100):
         return {'Y': Y, 'Z': Z, 'covZ': covZ, 'sam': sam}
     else:
         return {'Y': Y, 'Z': Z, 'covZ': covZ}
-
-# TODO: remove later, just for testing, to see if this shit runs
-if __name__ == "__main__":
-    Y_1 = np.array([[1, 2], [-1, -2]])
-    Y_2 = np.array([[10, 11, 12], [-10, -11, -12]])
-    Y = [Y_1, Y_2]
-    gfa(Y, K=8)

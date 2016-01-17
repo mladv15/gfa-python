@@ -12,8 +12,8 @@ from src.gfa import gfa_experiments
 # Dimensions
 Ntrain = Ntest = 100
 N = Ntrain + Ntest  # num samples
-M = 2  # num groups
-D = [15, 7]  # data dimensions for each group, D = [D_1, ..., D_M]
+M = 3  # num groups
+D = [15, 7, 10]  # data dimensions for each group, D = [D_1, ..., D_M]
 K = 4  # num latent factors
 
 
@@ -49,10 +49,11 @@ def main():
     plt.show()
     
     # Testing predictive inference
-    res = gfa_prediction(np.array([1, 0]), Ytest, model, sample=True)
+    res = gfa_prediction(np.array([1, 0]), Ytest, model, sample=False)
     totalDiff = np.sum(np.abs(Ytest[1] - res['Y'][1]))
     print("GFA prediction")
     print("Difference in predicted output: " + str(totalDiff))
+
 
 def generate_data():
     # Latent samples
@@ -65,10 +66,11 @@ def generate_data():
     Z[Ntrain:, 3] = np.linspace(1, Ntest, Ntest)/Ntest - 0.5  # test samples
 
     # Precisions
-    tau = [3, 6]  # noise precision for each group
+    tau = [3, 6, 3]  # noise precision for each group
     alpha = np.zeros((M, K))  # component precisions for each group
     alpha[0, :] = [1, 1, 1e6, 1]  # component precisions for group 1
     alpha[1, :] = [1, 1, 1, 1e6]  # component precisions for group 2
+    alpha[2, :] = [1, 1e6, 1, 1]  # component precisions for group 3
 
     # Observations
     #   Y    : List of M data matrices. Y[m] is a matrix with
@@ -86,7 +88,7 @@ def generate_data():
     # W[m] is actually the transposed (D_m x K) matrix W^(m).T
     # from equation (1) in the paper
     W = [None]*M
-
+    
     # for each group m
     for m in range(M):
         W[m] = np.empty((D[m], K))
@@ -101,7 +103,7 @@ def generate_data():
         epsilon_m = np.random.randn(N, D[m])/np.sqrt(tau[m])
         Y[m] = np.dot(Z, W[m].T) + epsilon_m
         # split observations into training and test sets
-        Ytest[m] = Y[m][(Ntrain+1):, :]
+        Ytest[m] = Y[m][Ntrain:, :]
         Y[m] = Y[m][:Ntrain, :]
 
     # split latent samples into training and test sets
