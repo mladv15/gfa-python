@@ -6,6 +6,7 @@ from __future__ import division, print_function
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import gamma
+from scipy.spatial import distance
 from src.gfa import gfa
 from src.gfa import gfa_experiments
 
@@ -20,12 +21,10 @@ def main():
     W, Z, Y = generate_data()
 
     # Plot true latent components
-    """
     for k in range(K):
         plt.subplot(K, 1, k+1)
         plt.scatter(range(N), Z[:, k], facecolors='none')
     plt.suptitle("True latent components")
-    """
     """
     # Remove later, but could be interesting to plot the actual observations
     # Group 1 is 15-dimensional, so I'll just
@@ -39,13 +38,37 @@ def main():
 
     model = gfa_experiments(Y, K=8, Nrep=10, rotate=False, verbose=1)
 
-    """
+    # plot estaimated latent components
     plt.figure()
     for k in range(model['K']):
         plt.subplot(model['K'], 1, k+1)
         plt.scatter(range(N), model['Z'][:, k], facecolors='none')
     plt.suptitle("Estimated active latent components")
-    """
+
+    # reorder estimated latent variables to correspond to the true order
+
+    W_conc = [None]*K
+    Wmodel_conc = [None]*K
+    for k in range(K):
+        W_conc[k] = np.concatenate([W[m][:, k] for m in range(M)])
+        Wmodel_conc[k] = np.concatenate([model['W'][m][:, k] for m in range(M)])
+    # order_map[x] = y means that estimated latent variable number x
+    # corresponds to the true latent variable number y
+    order_map = [None]*K
+    for k in range(K):
+        w_k_model = Wmodel_conc[k]
+        similarities = [distance.cosine(np.abs(w_k_model), np.abs(W_conc[i])) for i in range(K)]
+        most_sim_idx = np.argmin(similarities)
+        print(similarities)
+        order_map[k] = most_sim_idx
+    print(order_map)
+    plt.figure()
+    plt.subplot(2, 1, 1)
+    plt.imshow(np.abs(W_conc), cmap=plt.cm.gray_r, interpolation='none')
+    plt.subplot(2, 1, 2)
+    plt.imshow(np.abs(Wmodel_conc), cmap=plt.cm.gray_r, interpolation='none')
+    plt.title("W_model concatenate")
+    plt.show()
 
     # plot true matrix projections
     plot_W(W, "True")
