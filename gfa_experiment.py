@@ -46,13 +46,13 @@ def main():
         plt.scatter(range(Ntrain), model['Z'][:, k], facecolors='none')
     plt.suptitle("Estimated active latent components")
 
-    #plt.show()
+    plt.show()
     
     # Testing predictive inference
     res = gfa_prediction(np.array([1, 0]), Ytest, model, sample=True)
-    plt.figure()
     totalDiff = np.sum(np.abs(Ytest[1] - res['Y'][1]))
-    print(totalDiff)
+    print("GFA prediction")
+    print("Difference in predicted output: " + str(totalDiff))
 
 def generate_data():
     # Latent samples
