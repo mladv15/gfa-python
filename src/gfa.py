@@ -197,12 +197,12 @@ def gfa(Y, K,
     # Use R-rank factorization of alpha
     if R != "full":
         U = np.abs(np.random.randn(M, R))
-        lu = len(U)
+        lu = U.size
         u_mu = np.repeat(0, M)
         V = np.abs(np.random.randn(K, R))
-        lv = len(V)
+        lv = V.size
         v_mu = np.repeat(0, K)
-
+        
         x = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
         x = np.random.randn(len(x)) / 100
 
@@ -258,7 +258,7 @@ def gfa(Y, K,
                 V = V[keep, :]
                 v_mu = v_mu[keep]
                 x = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
-                lv = len(V)
+                lv = V.size
                 par_uv['K'] = K
                 par_uv['getv'] = range(lu, lu + lv)
                 par_uv['getumean'] = range(lu + lv, lu + lv + M) 
@@ -398,7 +398,7 @@ def gfa(Y, K,
                 cost[iter_] = None
                 raise ValueError("Problems in optimization. Try a new initialization.")
                 # terminate the algorithm (next model to learn)
-
+            
             x = res.x
             U = x[par_uv['getu']].reshape(par_uv['M'], par_uv['R'])
             V = x[par_uv['getv']].reshape(par_uv['K'], par_uv['R'])
