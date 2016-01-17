@@ -46,13 +46,14 @@ def main():
         plt.scatter(range(Ntrain), model['Z'][:, k], facecolors='none')
     plt.suptitle("Estimated active latent components")
 
-    plt.show()
+    #plt.show()
     
     # Testing predictive inference
-    res = gfa_prediction(np.array([1, 0]), Ytest, model, sample=True)
+    res = gfa_prediction(np.array([1, 0]), Ytest, model, sample=False)
     totalDiff = np.sum(np.abs(Ytest[1] - res['Y'][1]))
     print("GFA prediction")
     print("Difference in predicted output: " + str(totalDiff))
+
 
 def generate_data():
     # Latent samples
@@ -86,7 +87,7 @@ def generate_data():
     # W[m] is actually the transposed (D_m x K) matrix W^(m).T
     # from equation (1) in the paper
     W = [None]*M
-
+    
     # for each group m
     for m in range(M):
         W[m] = np.empty((D[m], K))
@@ -101,7 +102,7 @@ def generate_data():
         epsilon_m = np.random.randn(N, D[m])/np.sqrt(tau[m])
         Y[m] = np.dot(Z, W[m].T) + epsilon_m
         # split observations into training and test sets
-        Ytest[m] = Y[m][(Ntrain+1):, :]
+        Ytest[m] = Y[m][Ntrain:, :]
         Y[m] = Y[m][:Ntrain, :]
 
     # split latent samples into training and test sets

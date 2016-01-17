@@ -560,7 +560,7 @@ def gradEuv(x, par):
     grad = np.hstack((gradU.flatten(), gradV.flatten(), grad_umean, grad_vmean))
     return grad / 2
 
-def gfa_prediction(pred, Y, model, sample=False, nSample=100):
+def gfa_prediction(pred, y, model, sample=False, nSample=100):
     # Function for making predictions with the model. Gives the
     # mean prediction and the mean and covariance of the latent
     # variables. The predictive distribution itself does not have
@@ -601,7 +601,8 @@ def gfa_prediction(pred, Y, model, sample=False, nSample=100):
     
     (tr, ) = np.where(pred == 1) # The observed data sets
     (pr, ) = np.where(pred == 0) # The data sets that need to be predicted
-   
+  
+    Y = map(np.copy, y)
     
     N = Y[tr[0]].shape[0]
     M = len(model['D'])
@@ -665,10 +666,3 @@ def gfa_prediction(pred, Y, model, sample=False, nSample=100):
         return {'Y': Y, 'Z': Z, 'covZ': covZ, 'sam': sam}
     else:
         return {'Y': Y, 'Z': Z, 'covZ': covZ}
-
-# TODO: remove later, just for testing, to see if this shit runs
-if __name__ == "__main__":
-    Y_1 = np.array([[1, 2], [-1, -2]])
-    Y_2 = np.array([[10, 11, 12], [-10, -11, -12]])
-    Y = [Y_1, Y_2]
-    gfa(Y, K=8)
