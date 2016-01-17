@@ -386,11 +386,9 @@ def gfa(Y, K,
             for m in range(M):
                 par_uv['w2'][m, :] = np.diag(WW[m])
 
-            # Always start from the identity matrix, i.e. no rotation
-            r = np.hstack((U.flatten(), V.flatten(), u_mu, v_mu))
             minBound = np.hstack((np.repeat(-np.sqrt(500/R), M*R+K*R), np.repeat(-50, M+K)))
             maxBound = np.hstack((np.repeat(np.sqrt(500/R), M*R+K*R), np.repeat(50, M+K)))
-            res = sp.optimize.minimize(fun=Euv, x0=r, args=par_uv, method='L-BFGS-B', \
+            res = sp.optimize.minimize(fun=Euv, x0=x, args=par_uv, method='L-BFGS-B', \
                     jac=gradEuv, options={'maxiter': opt_iter}, \
                     bounds=tuple(zip(minBound, maxBound)))
 
