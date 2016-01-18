@@ -127,11 +127,7 @@ def get_latent_order(Z, Zmodel):
     K = Z.shape[1]
     # z_similarities[k] = list of tuples, sorted from most similar modeled latent factor index to the least similar
     # z_similarities[k] = [(z_model_idx, similarity)]
-    z_similarities = [None]*K
-    # z_closest_idx[k] = list of estimated latent factor indices that are closest to the true z_k, sorted from closest to furthest
-    z_closest_idx = [None]*K
-    # z_closest_sim[k] = list of distances for corresponding indices in z_closest_idx
-    z_closest_sim = [None]*K
+    z_similarities = {}
     for k in range(K):
         z_k = Z[:, k]
         similarities = [distance.cosine(z_k, Zmodel[:, i]) for i in range(K)]
@@ -141,21 +137,47 @@ def get_latent_order(Z, Zmodel):
     # corresponds to the estimated latent variable number i
     order_map = [None]*K
     for trial in range(K):
+        if len(z_similarities) == 0:
+            break
+        """
         # the closest index for this trial, but do not include z_k's closest if z_k has already been assigned a model latent factor
-        closest_idx_trial = [None]*K
-        closest_sim_trial = [None]*K
+        closest_idx_trial = {}
+        closest_sim_trial = {}
+        for k, sim_tuple_list in z_similarities.iteritems():
+            pass
         for k, mapped in enumerate(order_map):
             if mapped is None:
                 closest_idx_trial[k] = z_similarities[k][trial][0]
                 closest_sim_trial[k] = z_similarities[k][trial][1]
+        """
         # closest_idx_trial = [z_similarities[k][trial][0] for k in range(K)]
         # closest_sim_trial = [z_similarities[k][trial][1] for k in range(K)]
-        idx_counter = Counter(closest_idx_trial)
-        idx_counter.pop(None, None)
+        # idx_counter = Counter(closest_idx_trial)
+
+        # set to None if closest at this trial has already been assigned
+        for k in z_similarities.keys():
+            sim_tuple_list_k = z_similarities[k]
+            if sim_tuple_list_k[trial][0] in order_map:
+                z_similarities[k][trial] = None
+        # closest at this trial (that has note already been assigned)
+        closest_idx_trial = [sim_tuple_list[trial][0] for sim_tuple_list in z_similarities.values()]
+        idx_counter_trial = Counter(closest_idx_trial)
+        # idx_counter_trial.pop(None, None)  # remove the Nones that were set when checking if closest at this trial already has been assigned
+        """
         for k, closest_idx in enumerate(closest_idx_trial):
             # set z_k's closest if not already set and closest_idx is unique for this trial
             if closest_idx is not None and idx_counter[closest_idx] == 1:
                 order_map[k] = closest_idx
+        """
+        # map z_k to its closest at trial if no other has the same closest at this trial (and closest not previously assigned)
+        for k in z_similarities.keys():
+            sim_tuple_list_k = z_similarities[k]
+            k_closest_idx = sim_tuple_list_k[trial][0]
+            if idx_counter_trial[k_closest_idx] == 1:
+                order_map[k] = k_closest_idx
+                z_similarities.pop(k)
+        # for the z_ks that have the same closest at this trial, use the one that has closest similarity
+
 
 
 
