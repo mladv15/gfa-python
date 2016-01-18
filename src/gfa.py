@@ -26,7 +26,7 @@ def gfa_experiments(Y, K, Nrep=10, verbose=1, **opts):
     lb = []  # lower bounds
     models = []  # the best one will be returned
     for rep in range(Nrep):
-        model = gfa(Y, K, **opts)
+        model = gfa(Y, K, R=2, **opts)
         models.append(model)
         lb.append(model['cost'][-1])  # not defined yet
         if verbose == 1:
@@ -388,8 +388,12 @@ def gfa(Y, K,
 
             minBound = np.hstack((np.repeat(-np.sqrt(500/R), M*R+K*R), np.repeat(-50, M+K)))
             maxBound = np.hstack((np.repeat(np.sqrt(500/R), M*R+K*R), np.repeat(50, M+K)))
-            res = sp.optimize.minimize(fun=Euv, x0=x, args=par_uv, method='L-BFGS-B', \
-                    jac=gradEuv, options={'maxiter': opt_iter}, \
+            res = sp.optimize.minimize(x0=x,
+                    fun=Euv, 
+                    jac=gradEuv, 
+                    args=par_uv, 
+                    method='L-BFGS-B',
+                    options={'maxiter': opt_iter},
                     bounds=tuple(zip(minBound, maxBound)))
 
             if not res.success:
@@ -447,12 +451,12 @@ def gfa(Y, K,
 
         # E[ ln p(alpha) ] - E[ ln q(alpha) ]
         if R == "full":
-            lb_pa = M * K * (-sp.special.gammaln(prior_alpha_0) + prior_alpha_0 * np.log(prior_beta_0)) + (prior_alpha_0 - 1) * np.sum(logalpha) - prior_beta_0 * np.sum(alpha)
+            lb_pa = M * K * (-sp.special.gammaln(alpha_0) + alpha_0 * np.log(beta_0)) + (alpha_0 - 1) * np.sum(logalpha) - beta_0 * np.sum(alpha)
             lb_qa = -K * np.sum(sp.special.gammaln(a_ard)) + np.sum(a_ard * np.sum(np.log(b_ard), axis=1)) + np.sum((a_ard - 1) * np.sum(logalpha, axis=1)) - np.sum(b_ard * alpha)
             lb = lb + lb_pa - lb_qa
 
         # E[ln p(tau) ] - E[ ln q(tau) ]
-        lb_pt = lb_pt_const + np.sum((prior_alpha_0t - 1) * logtau) - np.sum(prior_beta_0t * tau)
+        lb_pt = lb_pt_const + np.sum((alpha_0t - 1) * logtau) - np.sum(beta_0t * tau)
         lb_qt = lgammaa_tau + np.dot(a_tau.T, np.log(b_tau)) + np.dot((a_tau - 1).T, logtau) - np.dot(b_tau.T, tau)
         lb = lb + lb_pt - lb_qt
 
@@ -536,7 +540,7 @@ def Euv(x, par):
     if par['lambda'] != 0:
         E = E - par['lambda'] * (np.sum(V ** 2) + np.sum(U ** 2))
 
-    return E / 2
+    return -E / 2
 
 def gradEuv(x, par):
     #
@@ -556,7 +560,8 @@ def gradEuv(x, par):
     grad_umean = np.sum(alphaiAlphaw2, axis=1)
     grad_vmean = np.sum(alphaiAlphaw2, axis=0)
     grad = np.hstack((gradU.flatten(), gradV.flatten(), grad_umean, grad_vmean))
-    return grad / 2
+    
+    return -grad / 2
 
 def gfa_prediction(pred, y, model, sample=False, nSample=100):
     # Function for making predictions with the model. Gives the
