@@ -27,11 +27,11 @@ def main():
     Y_hstack = np.hstack([Y[m] for m in range(M)])
 
     # Plot true latent components
+    """
     for k in range(K):
         plt.subplot(K, 1, k+1)
         plt.scatter(range(N), Z[:, k], facecolors='none')
     plt.suptitle("True latent components")
-    """
     # Remove later, but could be interesting to plot the actual observations
     # Group 1 is 15-dimensional, so I'll just
     # plot observations of group 2 (5 dimensional)
@@ -49,6 +49,7 @@ def main():
     fa.fit(Y_hstack)
 
     # plot estaimated latent components from GFA
+    """
     plt.figure()
     for k in range(model['K']):
         plt.subplot(model['K'], 1, k+1)
@@ -62,25 +63,24 @@ def main():
         plt.subplot(model['K'], 1, k+1)
         plt.scatter(range(N), Z_fa[:, k], facecolors='none')
     plt.suptitle("FA: estimated active latent components")
-
-    # reorder estimated latent variables to correspond to the true order
+    """
 
     W_conc = [None]*K
-    Wmodel_conc = [None]*K
+    Wgfa_conc = [None]*K
     for k in range(K):
         W_conc[k] = np.concatenate([W[m][:, k] for m in range(M)])
-        Wmodel_conc[k] = np.concatenate([model['W'][m][:, k] for m in range(M)])
-    # order_map[x] = y means that estimated latent variable number x
-    # corresponds to the true latent variable number y
+        Wgfa_conc[k] = np.concatenate([model['W'][m][:, k] for m in range(M)])
+    # order_map[k] = i means that true latent factor number k
+    # corresponds to the true estimated latent factor number i
     order_map = [None]*K
     for k in range(K):
         w_k = W_conc[k]
-        similarities = [distance.cosine(np.abs(w_k), np.abs(Wmodel_conc[i])) for i in range(K)]
+        similarities = [distance.cosine(np.abs(w_k), np.abs(Wgfa_conc[i])) for i in range(K)]
         most_sim_idx = np.argmin(similarities)
         order_map[k] = most_sim_idx
-
-    ###################
     # TODO: get reordering from Z, not W
+    # order_map_Z = get_latent_order(Z, model['Z'])  # doesn't work atm
+    """ why does this not work? :(
     order_map_Z = [None]*K
     for k in range(K):
         z_k = Z[:, k]
@@ -89,19 +89,21 @@ def main():
         most_sim_idx = np.argmin(similarities)
         order_map_Z[k] = most_sim_idx
     print(order_map_Z)
-    ###################
+    """
 
-    Wmodel_ordered = np.array(Wmodel_conc)[order_map].T
-    plt.figure()
+    # plot factor loadings W
+    plt.subplot(1, 3, 1)
+    plt.imshow(np.abs(np.array(W_conc).T), cmap=plt.cm.gray_r, interpolation='none')
+    plt.title("True")
+
+    Wmodel_ordered = np.array(Wgfa_conc)[order_map].T
+    plt.subplot(1, 3, 2)
     plt.imshow(np.abs(Wmodel_ordered), cmap=plt.cm.gray_r, interpolation='none')
+    plt.title("GFA")
 
-    # plot true matrix projections
-    plt.figure()
-    plot_grouped_W(W, "True")
-
-    plt.figure()
-    # plot estimated matrix projections
-    #plot_grouped_W(model['W'], "Estimated")
+    plt.subplot(1, 3, 3)
+    plt.imshow(np.abs(fa.components_.T), cmap=plt.cm.gray_r, interpolation='none')
+    plt.title("FA")
 
     plt.show()
 
@@ -132,27 +134,13 @@ def get_latent_order(Z, Zmodel):
         z_k = Z[:, k]
         similarities = [distance.cosine(z_k, Zmodel[:, i]) for i in range(K)]
         sim_argsort = np.argsort(similarities)
-        z_similarities[k] = zip(sim_argsort, similarities[sim_argsort])
+        z_similarities[k] = zip(sim_argsort, np.array(similarities)[sim_argsort])
     # order_map[k] = i means that true latent variable number k
     # corresponds to the estimated latent variable number i
     order_map = [None]*K
     for trial in range(K):
         if len(z_similarities) == 0:
             break
-        """
-        # the closest index for this trial, but do not include z_k's closest if z_k has already been assigned a model latent factor
-        closest_idx_trial = {}
-        closest_sim_trial = {}
-        for k, sim_tuple_list in z_similarities.iteritems():
-            pass
-        for k, mapped in enumerate(order_map):
-            if mapped is None:
-                closest_idx_trial[k] = z_similarities[k][trial][0]
-                closest_sim_trial[k] = z_similarities[k][trial][1]
-        """
-        # closest_idx_trial = [z_similarities[k][trial][0] for k in range(K)]
-        # closest_sim_trial = [z_similarities[k][trial][1] for k in range(K)]
-        # idx_counter = Counter(closest_idx_trial)
 
         # set to None if closest at this trial has already been assigned
         for k in z_similarities.keys():
@@ -160,15 +148,13 @@ def get_latent_order(Z, Zmodel):
             if sim_tuple_list_k[trial][0] in order_map:
                 z_similarities[k][trial] = None
         # closest at this trial (that has note already been assigned)
-        closest_idx_trial = [sim_tuple_list[trial][0] for sim_tuple_list in z_similarities.values()]
+        closest_idx_trial = []
+        for sim_tuple_list in z_similarities.values():
+            if sim_tuple_list[trial] is not None:
+                closest_idx_trial.append(sim_tuple_list[trial][0])
+        # closest_idx_trial = [sim_tuple_list[trial][0] for sim_tuple_list in z_similarities.values()]
         idx_counter_trial = Counter(closest_idx_trial)
-        # idx_counter_trial.pop(None, None)  # remove the Nones that were set when checking if closest at this trial already has been assigned
-        """
-        for k, closest_idx in enumerate(closest_idx_trial):
-            # set z_k's closest if not already set and closest_idx is unique for this trial
-            if closest_idx is not None and idx_counter[closest_idx] == 1:
-                order_map[k] = closest_idx
-        """
+        idx_counter_trial.pop(None, None)  # remove the Nones that were set when checking if closest at this trial already has been assigned
         # map z_k to its closest at trial if no other has the same closest at this trial (and closest not previously assigned)
         for k in z_similarities.keys():
             sim_tuple_list_k = z_similarities[k]
@@ -177,8 +163,21 @@ def get_latent_order(Z, Zmodel):
                 order_map[k] = k_closest_idx
                 z_similarities.pop(k)
         # for the z_ks that have the same closest at this trial, use the one that has closest similarity
-
-
+        for idx_closest, count in idx_counter_trial.iteritems():
+            if count > 1 and idx_closest is not None:
+                # consider all the multiple z_ks  that have idx_closest as closest
+                # the index of idx2k maps to z_k's index: idx2k[idx] = the corresponding k in z_k
+                idx2k = []
+                multiple_similarities = []
+                for k, sim_tuple_list in z_similarities.iteritems():
+                    if sim_tuple_list[trial][0] == idx_closest:
+                        idx2k.append(k)
+                        multiple_similarities.append(sim_tuple_list[trial][1])
+                winner_idx = np.argmin(multiple_similarities)
+                winner_k = idx2k[winner_idx]
+                order_map[winner_k] = idx_closest
+                z_similarities.pop(winner_k)
+    return order_map
 
 
 def generate_data():
